@@ -45,10 +45,10 @@ public class GameManager : MonoBehaviour {
 
         manifest = GameManifestLoader.LoadFromResources(manifestResourcePath);
 
-        // find system references if not manually assigned
-        if (sceneLoader == null) sceneLoader = FindObjectOfType<SceneLoader>();
-        if (dialogueLoader == null) dialogueLoader = FindObjectOfType<DialogueLoader>();
-        if (cinematicLoader == null) cinematicLoader = FindObjectOfType<CinematicLoader>();
+        // find system references if not manually assigned (cleaner pattern)
+        sceneLoader = sceneLoader ?? FindFirstObjectByType<SceneLoader>();
+        dialogueLoader = dialogueLoader ?? FindFirstObjectByType<DialogueLoader>();
+        cinematicLoader = cinematicLoader ?? FindFirstObjectByType<CinematicLoader>();
 
         // start in Menu state; no scenes loaded yet
         State = GameState.Menu;
@@ -78,7 +78,7 @@ public class GameManager : MonoBehaviour {
             Debug.LogError("SceneLoader not found. Assign SceneLoader in GameManager inspector.");
             yield break;
         }
-        yield return StartCoroutine(sceneLoader.LoadScenesAdditiveRoutine(sceneNames));
+        yield return sceneLoader.LoadScenesAdditiveRoutine(sceneNames);
 
         // After loaded, disable all room scenes then enable the initial room
         foreach (var r in roomsOrdered) {
@@ -113,11 +113,9 @@ public class GameManager : MonoBehaviour {
     public void TransitionToNextRoom() {
         if (State != GameState.Playing) return;
         if (roomsOrdered == null || roomsOrdered.Count == 0) return;
-        int nextIndex = activeRoomIndex + 1;
-        if (nextIndex >= roomsOrdered.Count) {
-            Debug.Log("No more rooms in sequence. Reached end.");
-            return;
-        }
+        
+        // Cycle through rooms using modulo (kitchen ↔ dorm ↔ kitchen...)
+        int nextIndex = (activeRoomIndex + 1) % roomsOrdered.Count;
         StartCoroutine(TransitionRoutine(nextIndex));
     }
 

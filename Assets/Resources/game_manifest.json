@@ -15,7 +15,7 @@
     },
     {
       "id": "parents_dorm",
-      "sceneName": "Room_ParentsDorm",
+      "sceneName": "Room_Dorm",
       "items": [
         {
           "id": "parents_jacket",

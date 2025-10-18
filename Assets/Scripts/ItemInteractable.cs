@@ -1,63 +1,69 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections;
 
-[RequireComponent(typeof(Collider2D))]
-public class ItemInteractable : MonoBehaviour {
+/// <summary>
+/// Item interaction using Unity Button component with yellow hover highlighting.
+/// Attach to a Button GameObject in the room scenes.
+/// </summary>
+public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler {
     [Header("Data")]
     public string itemId; // must match manifest id (e.g. "kitchen_fridge")
-    public GameObject highlightObject;
 
-    private bool isPointerOver = false;
+    private Button button;
+    private Image buttonImage;
+    private Color originalColor;
 
     void Start() {
-        if (highlightObject != null) highlightObject.SetActive(false);
+        button = GetComponent<Button>();
+        buttonImage = GetComponent<Image>();
+        
+        if (button != null) {
+            button.onClick.AddListener(OnButtonClick);
+        }
+        
+        if (buttonImage != null) {
+            originalColor = buttonImage.color;
+        }
     }
 
     void Update() {
-        if (GameManager.I == null) return;
-        if (GameManager.I.IsInputBlocked) {
-            if (highlightObject != null && highlightObject.activeSelf) highlightObject.SetActive(false);
-            return;
-        }
-
-        // Only respond if this object's scene is the active room's scene
-        var myScene = gameObject.scene.name;
-        if (myScene != GameManager.I.ActiveRoomSceneName) {
-            if (isPointerOver) {
-                // cleanup when pointer moves off while room inactive
-                isPointerOver = false;
-                if (highlightObject != null) highlightObject.SetActive(false);
+        // Handle input blocking and scene activity
+        bool shouldBeInteractable = true;
+        
+        if (GameManager.I == null) {
+            shouldBeInteractable = false;
+        } else if (GameManager.I.IsInputBlocked) {
+            shouldBeInteractable = false;
+        } else {
+            // Only respond if this object's scene is the active room's scene
+            var myScene = gameObject.scene.name;
+            if (myScene != GameManager.I.ActiveRoomSceneName) {
+                shouldBeInteractable = false;
             }
-            return;
         }
-
-        // Use InputManager for pointer
-        if (InputManager.Instance == null) return;
-        Vector2 screenPos = InputManager.Instance.PointerScreenPosition;
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, Camera.main.nearClipPlane));
-        Vector2 point = new Vector2(worldPos.x, worldPos.y);
-
-        bool hitThis = GetComponent<Collider2D>().OverlapPoint(point);
-        if (hitThis && !isPointerOver) OnPointerEnter();
-        else if (!hitThis && isPointerOver) OnPointerExit();
-
-        if (isPointerOver && InputManager.Instance.WasClickThisFrame()) {
-            OnClicked();
+        
+        if (button != null) {
+            button.interactable = shouldBeInteractable;
         }
     }
 
-    void OnPointerEnter() {
-        isPointerOver = true;
-        if (highlightObject != null) highlightObject.SetActive(true);
+    public void OnPointerEnter(PointerEventData eventData) {
+        if (button != null && button.interactable && buttonImage != null) {
+            buttonImage.color = Color.yellow;
+        }
     }
 
-    void OnPointerExit() {
-        isPointerOver = false;
-        if (highlightObject != null) highlightObject.SetActive(false);
+    public void OnPointerExit(PointerEventData eventData) {
+        if (buttonImage != null) {
+            buttonImage.color = originalColor;
+        }
     }
 
-    void OnClicked() {
+    private void OnButtonClick() {
+        if (GameManager.I == null || GameManager.I.IsInputBlocked) return;
+        
         // If already interacted, do nothing (or you can play secondary response)
         if (GameManager.I.HasInteracted(itemId)) { return; }
 
@@ -69,12 +75,18 @@ public class ItemInteractable : MonoBehaviour {
         GameManager.I.BlockInput();
 
         var itemData = GameManager.I.FindItem(itemId);
+        if (itemData == null) {
+            GameManager.I.UnblockInput();
+            yield break;
+        }
 
-        if (itemData != null && !string.IsNullOrEmpty(itemData.cinematicId)) {
+        // Play cinematic if present
+        if (!string.IsNullOrEmpty(itemData.cinematicId)) {
             yield return GameManager.I.cinematicLoader.PlayCinematic(itemData.cinematicId);
         }
 
-        if (itemData != null && !string.IsNullOrEmpty(itemData.dialogueId)) {
+        // Play dialogue if present
+        if (!string.IsNullOrEmpty(itemData.dialogueId)) {
             yield return GameManager.I.dialogueLoader.PlayDialogueCoroutine(itemData.dialogueId);
         }
 

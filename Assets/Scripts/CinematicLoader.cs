@@ -30,7 +30,6 @@ public class CinematicLoader : MonoBehaviour {
             }
 
             float interval = cd.fps > 0 ? 1f / cd.fps : 1f / 6f;
-            float timer = 0f;
             int idx = 0;
             float total = 0f;
             while (total < cd.duration) {
