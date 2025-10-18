@@ -1,0 +1,61 @@
+{
+  "rooms": [
+    {
+      "id": "kitchen",
+      "sceneName": "Room_Kitchen",
+      "items": [
+        {
+          "id": "kitchen_fridge",
+          "displayName": "Fridge",
+          "position": { "x": 0.0, "y": 0.0 },
+          "dialogueId": "dialogue_fridge_first",
+          "cinematicId": "cinematic_fridge_first"
+        }
+      ]
+    },
+    {
+      "id": "parents_dorm",
+      "sceneName": "Room_ParentsDorm",
+      "items": [
+        {
+          "id": "parents_jacket",
+          "displayName": "Jacket",
+          "position": { "x": 0.0, "y": 0.0 },
+          "dialogueId": "dialogue_jacket_first",
+          "cinematicId": "cinematic_jacket_first"
+        }
+      ]
+    }
+  ],
+  "dialogues": [
+    {
+      "id": "dialogue_fridge_first",
+      "lines": [
+        { "text": "Toca els meus pastissets i venc la moto. Ho dic enserio - Dolors", "audioClip": "audio/fridge_line1" }
+      ]
+    },
+    {
+      "id": "dialogue_jacket_first",
+      "lines": [
+        { "text": "Sempre em venia a buscar amb la moto després de classe.", "audioClip": "audio/jacket_line1" },
+        { "text": "Recordo que m'agafava ben fort perquè tenia por. La seva olor em calmava. Si tanco els ulls encara la sento...", "audioClip": "audio/jacket_line2" }
+      ]
+    }
+  ],
+  "cinematics": [
+    {
+      "id": "cinematic_fridge_first",
+      "type": "sprite_frames",
+      "framePaths": ["anims/fridge/frame_000", "anims/fridge/frame_001"],
+      "fps": 6,
+      "duration": 5.0
+    },
+    {
+      "id": "cinematic_jacket_first",
+      "type": "sprite_frames",
+      "framePaths": ["anims/jacket/frame_000", "anims/jacket/frame_001"],
+      "fps": 6,
+      "duration": 5.0
+    }
+  ]
+}
