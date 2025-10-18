@@ -56,7 +56,7 @@ public class GameManager : MonoBehaviour {
 
     #region Game Start / Loading
     /// <summary>
-    /// Called by the Main Menu Start button to begin preloading scenes and enter kitchen.
+    /// Called by the Main Menu Start button to transition to loading screen, then preload scenes.
     /// </summary>
     public void StartGame() {
         if (State != GameState.Menu) return;
@@ -65,6 +65,12 @@ public class GameManager : MonoBehaviour {
 
     private IEnumerator StartGameRoutine() {
         State = GameState.Loading;
+        
+        if (sceneLoader == null) {
+            Debug.LogError("SceneLoader not found. Assign SceneLoader in GameManager inspector.");
+            yield break;
+        }
+        
         if (manifest == null) {
             Debug.LogError("Manifest missing. Cannot start game.");
             yield break;
@@ -74,10 +80,6 @@ public class GameManager : MonoBehaviour {
 
         // Preload all room scenes additively
         var sceneNames = roomsOrdered.Select(r => r.sceneName);
-        if (sceneLoader == null) {
-            Debug.LogError("SceneLoader not found. Assign SceneLoader in GameManager inspector.");
-            yield break;
-        }
         yield return sceneLoader.LoadScenesAdditiveRoutine(sceneNames);
 
         // After loaded, disable all room scenes then enable the initial room
@@ -90,7 +92,7 @@ public class GameManager : MonoBehaviour {
         if (startIndex < 0) startIndex = 0;
         activeRoomIndex = startIndex;
 
-        // enable the starting room visuals
+        // Show the starting room
         sceneLoader.SetSceneActiveObjects(ActiveRoomSceneName, true);
 
         State = GameState.Playing;

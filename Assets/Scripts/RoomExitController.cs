@@ -1,19 +1,22 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using System.Collections;
 
 /// <summary>
-/// Simple UI Button at center-bottom that triggers room transitions.
+/// Dual-purpose exit button: closes overlays OR transitions between rooms.
 /// Uses Unity's built-in hover detection and yellow color highlight.
 /// </summary>
 public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler {
     private Button button;
     private Image buttonImage;
     private Color originalColor;
+    private CinematicLoader cinematicLoader;
 
     void Start() {
         button = GetComponent<Button>();
         buttonImage = GetComponent<Image>();
+        cinematicLoader = FindFirstObjectByType<CinematicLoader>();
         
         if (button != null) {
             button.onClick.AddListener(OnButtonClick);
@@ -43,8 +46,21 @@ public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerE
     }
 
     private void OnButtonClick() {
-        if (GameManager.I != null && !GameManager.I.IsInputBlocked) {
+        if (GameManager.I == null || GameManager.I.IsInputBlocked) return;
+        
+        // Check if we're in overlay mode
+        if (cinematicLoader != null && cinematicLoader.IsOverlayActive) {
+            // Close overlay instead of transitioning rooms
+            StartCoroutine(CloseOverlay());
+        } else {
+            // Normal room transition
             GameManager.I.TransitionToNextRoom();
+        }
+    }
+    
+    private IEnumerator CloseOverlay() {
+        if (cinematicLoader != null) {
+            yield return cinematicLoader.HideOverlay();
         }
     }
 }

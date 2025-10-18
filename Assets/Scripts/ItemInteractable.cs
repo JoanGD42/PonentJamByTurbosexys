@@ -83,10 +83,9 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
         // Play cinematic if present
         if (!string.IsNullOrEmpty(itemData.cinematicId)) {
             yield return GameManager.I.cinematicLoader.PlayCinematic(itemData.cinematicId);
-        }
-
-        // Play dialogue if present
-        if (!string.IsNullOrEmpty(itemData.dialogueId)) {
+            
+        // Cinematic not present, play dialogue if present
+        } else if (!string.IsNullOrEmpty(itemData.dialogueId)) {
             yield return GameManager.I.dialogueLoader.PlayDialogueCoroutine(itemData.dialogueId);
         }
 
