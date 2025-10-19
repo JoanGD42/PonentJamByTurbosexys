@@ -26,6 +26,22 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
         if (buttonImage != null) {
             originalColor = buttonImage.color;
         }
+        
+        // Debug logging to help identify setup issues
+        Debug.Log($"ItemInteractable Start: {gameObject.name}, itemId: {itemId}, scene: {gameObject.scene.name}");
+        Debug.Log($"  - Button: {(button != null ? "Found" : "MISSING")}, Interactable: {button?.interactable}");
+        Debug.Log($"  - Image: {(buttonImage != null ? "Found" : "MISSING")}, RaycastTarget: {buttonImage?.raycastTarget}");
+        Debug.Log($"  - Canvas: {GetComponentInParent<Canvas>()?.name}, Sort: {GetComponentInParent<Canvas>()?.sortingOrder}");
+        Debug.Log($"  - FULL PATH: {GetFullPath(transform)}");
+    }
+    
+    private string GetFullPath(Transform transform) {
+        string path = transform.name;
+        while (transform.parent != null) {
+            transform = transform.parent;
+            path = transform.name + "/" + path;
+        }
+        return path;
     }
 
     void Update() {
@@ -38,8 +54,10 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
             shouldBeInteractable = false;
         } else {
             // Only respond if this object's scene is the active room's scene
+            // OR if this object is in an overlay canvas (Root_Persistent scene)
             var myScene = gameObject.scene.name;
-            if (myScene != GameManager.I.ActiveRoomSceneName) {
+            if (myScene != GameManager.I.ActiveRoomSceneName && 
+                myScene != "Root_Persistent") {
                 shouldBeInteractable = false;
             }
         }
@@ -50,8 +68,9 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
     }
 
     public void OnPointerEnter(PointerEventData eventData) {
+        Debug.Log($"ItemInteractable Hover Enter: {gameObject.name}, itemId: {itemId}");
         if (button != null && button.interactable && buttonImage != null) {
-            buttonImage.color = Color.yellow;
+            buttonImage.color = new Color(1f, 1f, 0f, 0.05f);
         }
     }
 
@@ -62,12 +81,38 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
     }
 
     private void OnButtonClick() {
-        if (GameManager.I == null || GameManager.I.IsInputBlocked) return;
+        Debug.Log($"ItemInteractable Click: {gameObject.name}, itemId: {itemId}");
+        if (GameManager.I == null || GameManager.I.IsInputBlocked) {
+            Debug.Log($"Click blocked - GameManager null: {GameManager.I == null}, Input blocked: {GameManager.I?.IsInputBlocked}");
+            return;
+        }
         
-        // If already interacted, do nothing (or you can play secondary response)
-        if (GameManager.I.HasInteracted(itemId)) { return; }
+        // Allow overlays to be opened multiple times
+        // Only register interaction for one-time items (like narratives with permanent changes)
+        bool shouldRegisterInteraction = true;
+        
+        var itemData = GameManager.I.FindItem(itemId);
+        if (itemData != null && !string.IsNullOrEmpty(itemData.cinematicId)) {
+            // Check if this is a repeatable overlay interaction
+            string cinematicId = itemData.cinematicId;
+            if (cinematicId == "close_up_closet_girl" || 
+                cinematicId == "close_up_closet" || 
+                cinematicId == "nightstand_dad" || 
+                cinematicId == "nightstand_mom" ||
+                cinematicId == "cinematic_fridge_first") {
+                shouldRegisterInteraction = false; // These can be repeated
+            }
+        }
+        
+        // For one-time interactions, check if already done
+        if (shouldRegisterInteraction && GameManager.I.HasInteracted(itemId)) { 
+            return; 
+        }
 
-        GameManager.I.RegisterInteraction(itemId);
+        if (shouldRegisterInteraction) {
+            GameManager.I.RegisterInteraction(itemId);
+        }
+        
         StartCoroutine(HandleInteractionCoroutine());
     }
 

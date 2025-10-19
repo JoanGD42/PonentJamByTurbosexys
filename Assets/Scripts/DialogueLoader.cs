@@ -13,7 +13,11 @@ public class DialogueLoader : MonoBehaviour {
         var manifest = GameManager.I.manifest;
         var dd = manifest.dialogues.Find(d => d.id == dialogueId);
         if (dd == null) yield break;
-        dialoguePanel?.SetActive(true);
+        
+        // Only show panel if it's assigned
+        if (dialoguePanel != null) {
+            dialoguePanel.SetActive(true);
+        }
 
         foreach (var line in dd.lines) {
             // play VO if present
@@ -39,7 +43,10 @@ public class DialogueLoader : MonoBehaviour {
             }
         }
 
-        dialoguePanel?.SetActive(false);
+        // Only hide panel if it's assigned
+        if (dialoguePanel != null) {
+            dialoguePanel.SetActive(false);
+        }
     }
 
     IEnumerator TypeLineCoroutine(string fullText) {

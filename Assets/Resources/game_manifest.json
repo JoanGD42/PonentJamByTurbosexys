@@ -10,7 +10,13 @@
           "position": { "x": 0.0, "y": 0.0 },
           "dialogueId": "dialogue_fridge_first",
           "cinematicId": "cinematic_fridge_first"
-        },
+        }
+      ]
+    },
+    {
+      "id": "girls_dorm",
+      "sceneName": "Room_GirlsDorm",
+      "items": [
         {
           "id": "girl_closet",
           "displayName": "Closet",
@@ -37,6 +43,20 @@
           "position": { "x": 0.0, "y": 0.0 },
           "dialogueId": "dialogue_closet_first",
           "cinematicId": "close_up_closet"
+        },
+        {
+          "id": "nightstand_dad",
+          "displayName": "Dad's Nightstand",
+          "position": { "x": 0.0, "y": 0.0 },
+          "dialogueId": "dialogue_nightstand_dad",
+          "cinematicId": "nightstand_dad"
+        },
+        {
+          "id": "nightstand_mom",
+          "displayName": "Mom's Nightstand",
+          "position": { "x": 0.0, "y": 0.0 },
+          "dialogueId": "dialogue_nightstand_mom",
+          "cinematicId": "nightstand_mom"
         }
       ]
     }
