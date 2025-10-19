@@ -12,6 +12,7 @@ public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerE
     private Image buttonImage;
     private Color originalColor;
     private CinematicLoader cinematicLoader;
+    private bool isClosingOverlay = false; // Track if we're currently closing an overlay
 
     void Start() {
         button = GetComponent<Button>();
@@ -28,21 +29,43 @@ public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerE
     }
 
     void Update() {
-        // Handle input blocking state changes
+        // Handle input blocking state changes AND overlay closing state
+        bool shouldBeInteractable = true;
+        
         if (GameManager.I != null && GameManager.I.IsInputBlocked) {
-            if (button != null) button.interactable = false;
-        } else {
-            if (button != null) button.interactable = true;
+            shouldBeInteractable = false;
+        }
+        
+        // Also disable during overlay closing (when overlay was active but is now closing)
+        if (cinematicLoader != null && isClosingOverlay) {
+            shouldBeInteractable = false;
+            
+            // Safety check: if overlay is not actually active but flag is stuck, reset it
+            if (!cinematicLoader.IsOverlayActive) {
+                Debug.LogWarning($"RoomExitController ({gameObject.name}): Detected stuck isClosingOverlay flag, resetting");
+                isClosingOverlay = false;
+                shouldBeInteractable = true;
+            }
+        }
+        
+        if (button != null) {
+            button.interactable = shouldBeInteractable;
         }
     }
 
     public void OnPointerEnter(PointerEventData eventData) {
-        if (GameManager.I != null && GameManager.I.IsInputBlocked) return;
-        if (buttonImage != null) buttonImage.color = Color.yellow;
+        // Only show hover effect if button is interactable
+        if (button != null && button.interactable && buttonImage != null) {
+            if (GameManager.I != null && GameManager.I.IsInputBlocked) return;
+            buttonImage.color = Color.yellow;
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData) {
-        if (buttonImage != null) buttonImage.color = originalColor;
+        // Always restore original color when leaving
+        if (buttonImage != null) {
+            buttonImage.color = originalColor;
+        }
     }
 
     private void OnButtonClick() {
@@ -50,7 +73,7 @@ public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerE
         
         // Check if we're in overlay mode
         if (cinematicLoader != null && cinematicLoader.IsOverlayActive) {
-            // Close overlay instead of transitioning rooms
+            // Close overlay - disable button during animation
             StartCoroutine(CloseOverlay());
         } else {
             // Normal room transition
@@ -60,7 +83,19 @@ public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerE
     
     private IEnumerator CloseOverlay() {
         if (cinematicLoader != null) {
+            // Set flag to indicate we're closing overlay (makes button non-interactable)
+            isClosingOverlay = true;
+            Debug.Log($"RoomExitController ({gameObject.name}): Starting overlay close, button disabled");
+            
             yield return cinematicLoader.HideOverlay();
+            
+            // Always clear flag after overlay operation (success or failure)
+            isClosingOverlay = false;
+            Debug.Log($"RoomExitController ({gameObject.name}): Overlay close completed, button re-enabled");
+        } else {
+            Debug.LogError($"RoomExitController ({gameObject.name}): cinematicLoader is null!");
+            // Make sure flag is cleared even if cinematicLoader is null
+            isClosingOverlay = false;
         }
     }
 }
