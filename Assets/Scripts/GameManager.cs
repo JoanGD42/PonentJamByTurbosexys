@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour {
 
     // runtime state
     private HashSet<string> interactedItems = new HashSet<string>();
+    private HashSet<string> collectedItems = new HashSet<string>(); // Persistent collected items
 
     // Room ordering derived from manifest order
     private List<RoomData> roomsOrdered;
@@ -112,29 +113,57 @@ public class GameManager : MonoBehaviour {
     #endregion
 
     #region Room transitions
-    public void TransitionToNextRoom() {
+    public void TransitionToNextRoom(int? forceIndex = null) {
         if (State != GameState.Playing) return;
         if (roomsOrdered == null || roomsOrdered.Count == 0) return;
+        if (IsInputBlocked) {
+            Debug.Log("GameManager: Transition blocked - input is already blocked (transition in progress)");
+            return;
+        }
         
-        // Cycle through rooms using modulo (kitchen ↔ dorm ↔ kitchen...)
-        int nextIndex = (activeRoomIndex + 1) % roomsOrdered.Count;
+        // Block input immediately to prevent rapid clicks
+        BlockInput();
+        
+        // Use forced index or cycle through rooms using modulo (kitchen ↔ dorm ↔ kitchen...)
+        int nextIndex = forceIndex ?? (activeRoomIndex + 1) % roomsOrdered.Count;
+        Debug.Log($"GameManager: Transitioning from index {activeRoomIndex} to index {nextIndex} (forced: {forceIndex})");
         StartCoroutine(TransitionRoutine(nextIndex));
     }
 
     private IEnumerator TransitionRoutine(int nextIndex) {
-        BlockInput();
+        Debug.Log($"GameManager: Starting transition routine to index {nextIndex}");
 
         var currentScene = ActiveRoomSceneName;
+        Debug.Log($"GameManager: Hiding current scene: {currentScene}");
         sceneLoader.SetSceneActiveObjects(currentScene, false);
 
         activeRoomIndex = nextIndex;
         var nextScene = ActiveRoomSceneName;
+        Debug.Log($"GameManager: Showing next scene: {nextScene}");
         sceneLoader.SetSceneActiveObjects(nextScene, true);
+
+        // Clear EventSystem selection to prevent phantom clicks on new scene's buttons
+        UnityEngine.EventSystems.EventSystem eventSystem = UnityEngine.EventSystems.EventSystem.current;
+        if (eventSystem != null) {
+            eventSystem.SetSelectedGameObject(null);
+        }
 
         // tiny settle time
         yield return new WaitForSeconds(0.2f);
-
+        
+        Debug.Log($"GameManager: Transition completed to {ActiveRoomSceneName}");
         UnblockInput();
+    }
+    #endregion
+
+    #region Collected Items Management
+    public void CollectItem(string itemId) {
+        collectedItems.Add(itemId);
+        Debug.Log($"GameManager: Item collected and persisted: {itemId}");
+    }
+    
+    public bool HasItemBeenCollected(string itemId) {
+        return collectedItems.Contains(itemId);
     }
     #endregion
 

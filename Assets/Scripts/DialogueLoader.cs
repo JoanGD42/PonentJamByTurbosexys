@@ -29,10 +29,11 @@ public class DialogueLoader : MonoBehaviour {
             // typewriter
             yield return TypeLineCoroutine(line.text);
             // wait for click or small delay; for testing we auto-advance after 1.0s or wait for click
-            // wait for click or auto-advance
+            // wait for click or auto-advance (with timeout safety net)
             float timer = 0f;
             bool advanced = false;
-            while (!advanced) {
+            float maxWaitTime = 10f;  // Safety timeout to prevent infinite hangs
+            while (!advanced && timer < maxWaitTime) {
                 timer += Time.deltaTime;
                 if (InputManager.Instance != null && InputManager.Instance.WasClickThisFrame()) {
                     advanced = true;

@@ -14,10 +14,12 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
     private Button button;
     private Image buttonImage;
     private Color originalColor;
+    private string cachedSceneName;  // Cache scene name to reduce Update() work
 
     void Start() {
         button = GetComponent<Button>();
         buttonImage = GetComponent<Image>();
+        cachedSceneName = gameObject.scene.name;  // Cache scene name
         
         if (button != null) {
             button.onClick.AddListener(OnButtonClick);
@@ -55,9 +57,9 @@ public class ItemInteractable : MonoBehaviour, IPointerEnterHandler, IPointerExi
         } else {
             // Only respond if this object's scene is the active room's scene
             // OR if this object is in an overlay canvas (Root_Persistent scene)
-            var myScene = gameObject.scene.name;
-            if (myScene != GameManager.I.ActiveRoomSceneName && 
-                myScene != "Root_Persistent") {
+            // Use cached scene name instead of querying gameObject.scene every frame
+            if (cachedSceneName != GameManager.I.ActiveRoomSceneName && 
+                cachedSceneName != "Root_Persistent") {
                 shouldBeInteractable = false;
             }
         }
