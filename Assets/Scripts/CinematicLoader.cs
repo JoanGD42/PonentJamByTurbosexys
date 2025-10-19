@@ -8,27 +8,25 @@ public class CinematicLoader : MonoBehaviour {
     public Canvas[] overlayCanvases;  // Multiple overlay canvases for different contexts
     public float fadeSpeed = 2f;
     
-    private bool isOverlayActive = false;
     private string currentOverlayContext = "";
     private Canvas currentActiveCanvas = null;
     
-    // State tracking for persistent changes
-    private HashSet<string> modifiedItems = new HashSet<string>();
-    
-    public bool IsOverlayActive => isOverlayActive;
     public string CurrentOverlayContext => currentOverlayContext;
 
     void Start() {
-        // Ensure all overlay canvases start hidden
+        // Ensure all overlay canvases start with raycasters disabled (keep canvases active for reuse)
         if (overlayCanvases != null) {
             for (int i = 0; i < overlayCanvases.Length; i++) {
                 if (overlayCanvases[i] != null) {
-                    Debug.Log($"CinematicLoader: Hiding overlay canvas {i} ({overlayCanvases[i].name}) on Start");
-                    overlayCanvases[i].gameObject.SetActive(false);
+                    var raycaster = overlayCanvases[i].GetComponent<GraphicRaycaster>();
+                    if (raycaster != null) {
+                        raycaster.enabled = false;
+                        Debug.Log($"CinematicLoader: Disabled raycaster for canvas {i} ({overlayCanvases[i].name}) on Start");
+                    }
                 }
             }
         }
-        Debug.Log("CinematicLoader: All overlay canvases should now be hidden");
+        Debug.Log("CinematicLoader: All overlay canvases initialized");
     }
 
     public IEnumerator PlayCinematic(string cinematicId) {
@@ -78,6 +76,16 @@ public class CinematicLoader : MonoBehaviour {
     }
     
     private IEnumerator PlayJacketCinematic() {
+        // Check if jacket was already collected - prevent re-running
+        if (GameManager.I.HasItemBeenCollected("parents_jacket")) {
+            Debug.Log("Jacket cinematic: Item already collected, skipping cinematic");
+            yield break;
+        }
+        
+        // Block input during entire cinematic to prevent phantom clicks
+        GameManager.I.BlockInput();
+        Debug.Log("Jacket cinematic: Input blocked for entire cinematic");
+        
         Debug.Log("Jacket cinematic: Touching father's jacket...");
         
         // Show detailed jacket view (canvas 3 for sniff jaqueta)
@@ -91,15 +99,77 @@ public class CinematicLoader : MonoBehaviour {
         
         // After dialogue, show empty closet and mark as modified
         yield return ShowOverlay("armari pares 2", 4);
-        CollectItem("parents_jacket"); // Use the correct itemId that matches the button
         currentOverlayContext = "closet_empty";
+        
+        // Wait a moment then hide overlay and complete cinematic
+        Debug.Log("Jacket cinematic: Waiting 1 second before completing...");
+        yield return new WaitForSeconds(1f);
+        Debug.Log("Jacket cinematic: Hiding overlay...");
+        
+        // HARDCODED cleanup for jacket cinematic: fade out both canvas 3 and 4
+        yield return HideJacketCinematicOverlays();
+        
+        Debug.Log("Jacket cinematic: HideOverlay coroutine completed");
+        
+        // Collect item and complete cinematic
+        CollectItem("parents_jacket"); 
+        
+        Debug.Log("Jacket cinematic: Completed successfully!");
+        
+        // Unblock input - cinematic is done
+        GameManager.I.UnblockInput();
+        Debug.Log("Jacket cinematic: Input unblocked, cinematic complete");
+    }
+    
+    private IEnumerator HideJacketCinematicOverlays() {
+        // Hardcoded cleanup for jacket cinematic: fade out canvas 3 (sniff jaqueta) and canvas 4 (armari pares 2)
+        Debug.Log("HideJacketCinematicOverlays: Starting fade out on canvases 3 and 4");
+        
+        List<Canvas> canvasesToHide = new List<Canvas> { overlayCanvases[3], overlayCanvases[4] };
+        
+        // Fade out both canvases simultaneously
+        float alpha = 1f;
+        while (alpha > 0f) {
+            alpha -= Time.deltaTime * fadeSpeed;
+            
+            foreach (var canvas in canvasesToHide) {
+                if (canvas == null) continue;
+                
+                Image[] images = canvas.GetComponentsInChildren<Image>(true);
+                foreach (var img in images) {
+                    if (img != null) {
+                        Color color = img.color;
+                        color.a = alpha;
+                        img.color = color;
+                    }
+                }
+            }
+            yield return null;
+        }
+        
+        // Disable raycasters on cinematic canvases (3 and 4 only)
+        foreach (var canvas in canvasesToHide) {
+            if (canvas == null) continue;
+            
+            var raycaster = canvas.GetComponent<GraphicRaycaster>();
+            if (raycaster != null) {
+                raycaster.enabled = false;
+            }
+        }
+        
+        // NOTE: Canvas 2 (armari pares 1) stays enabled - it's the base room overlay
+        // The exit button is on this canvas, so we need it to remain clickable!
+        
+        currentActiveCanvas = null;
+        currentOverlayContext = "";
+        Debug.Log("HideJacketCinematicOverlays: Completed");
     }
     
     private IEnumerator PlayParentsClosetCinematic() {
         Debug.Log("Parents' closet cinematic: Looking through parents' things...");
         
         // Show appropriate closet state based on whether jacket was taken
-        string closetImage = modifiedItems.Contains("jaqueta") ? "armari pares 2" : "armari pares 1";
+        string closetImage = GameManager.I.HasItemBeenCollected("parents_jacket") ? "armari pares 2" : "armari pares 1";
         yield return ShowOverlay(closetImage, closetImage == "armari pares 2" ? 4 : 2); // Use first canvas for closet
     }
 
@@ -149,8 +219,14 @@ public class CinematicLoader : MonoBehaviour {
         
         // Activate the canvas and set state
         targetCanvas.gameObject.SetActive(true);
+        
+        // Enable raycasting on this canvas so it can receive clicks
+        var raycaster = targetCanvas.GetComponent<GraphicRaycaster>();
+        if (raycaster != null) {
+            raycaster.enabled = true;
+        }
+        
         currentActiveCanvas = targetCanvas;
-        isOverlayActive = true;
         currentOverlayContext = overlayName;
         
         // Fade in all active images
@@ -180,12 +256,17 @@ public class CinematicLoader : MonoBehaviour {
     }
     
     public IEnumerator HideOverlay() {
-        if (!isOverlayActive || currentActiveCanvas == null) yield break;
+        if (currentActiveCanvas == null) {
+            Debug.Log($"CinematicLoader.HideOverlay: Early exit - no active canvas");
+            yield break;
+        }
         
-        // Get all images in the current active canvas
-        Image[] overlayImages = currentActiveCanvas.GetComponentsInChildren<Image>(false);
+        Debug.Log($"CinematicLoader.HideOverlay: Starting fade out on canvas {currentActiveCanvas.name}");
         
-        // Fade out all images
+        // Fade out the current active canvas
+        Image[] overlayImages = currentActiveCanvas.GetComponentsInChildren<Image>(true);
+        
+        // Fade out
         float alpha = 1f;
         while (alpha > 0f) {
             alpha -= Time.deltaTime * fadeSpeed;
@@ -199,7 +280,7 @@ public class CinematicLoader : MonoBehaviour {
             yield return null;
         }
         
-        // Ensure zero alpha and hide canvas
+        // Ensure zero alpha
         foreach (var img in overlayImages) {
             if (img != null) {
                 Color color = img.color;
@@ -208,24 +289,25 @@ public class CinematicLoader : MonoBehaviour {
             }
         }
         
-        if (currentActiveCanvas != null) {
-            currentActiveCanvas.gameObject.SetActive(false);
+        // Disable raycaster
+        var raycaster = currentActiveCanvas.GetComponent<GraphicRaycaster>();
+        if (raycaster != null) {
+            raycaster.enabled = false;
         }
         
         currentActiveCanvas = null;
         currentOverlayContext = "";
-        // Set overlay as inactive only after it's completely closed
-        isOverlayActive = false;
+        Debug.Log($"CinematicLoader.HideOverlay: Completed");
     }
     
     public bool HasItemBeenModified(string itemId) {
-        return modifiedItems.Contains(itemId);
+        return GameManager.I.HasItemBeenCollected(itemId);
     }
     
     // Generic method to disable any button by itemId and mark item as collected
     private void CollectItem(string itemId) {
-        // Add to modified items collection
-        modifiedItems.Add(itemId);
+        // Add to GameManager's persistent collection
+        GameManager.I.CollectItem(itemId);
         Debug.Log($"Item collected: {itemId}");
         
         // Find and disable the corresponding button
