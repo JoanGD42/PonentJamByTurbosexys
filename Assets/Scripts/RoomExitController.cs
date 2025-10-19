@@ -1,71 +1,66 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 using System.Collections;
 
 /// <summary>
-/// Configurable screen-space region (center-bottom) that shows a highlight when hovered and triggers room change on click.
-/// Attach this to a Persistent UI GameObject (e.g., Root Canvas) and assign a highlight Image or GameObject.
+/// Dual-purpose exit button: closes overlays OR transitions between rooms.
+/// Uses Unity's built-in hover detection and yellow color highlight.
 /// </summary>
-public class RoomExitController : MonoBehaviour {
-    [Header("Region (screen-space)")]
-    [Tooltip("Width of the interactive region as a fraction of screen width (0..1)")]
-    [Range(0.05f, 0.8f)]
-    public float regionWidthFraction = 0.25f;
-    [Tooltip("Height of the interactive region as fraction of screen height")]
-    [Range(0.02f, 0.3f)]
-    public float regionHeightFraction = 0.12f;
-    [Tooltip("Vertical offset from bottom in pixels")]
-    public float verticalOffset = 10f;
-
-    [Header("Visual")]
-    public GameObject highlightObject; // enable/disable to show the region
+public class RoomExitController : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler {
+    private Button button;
+    private Image buttonImage;
+    private Color originalColor;
+    private CinematicLoader cinematicLoader;
 
     void Start() {
-        if (highlightObject != null) highlightObject.SetActive(false);
+        button = GetComponent<Button>();
+        buttonImage = GetComponent<Image>();
+        cinematicLoader = FindFirstObjectByType<CinematicLoader>();
+        
+        if (button != null) {
+            button.onClick.AddListener(OnButtonClick);
+        }
+        
+        if (buttonImage != null) {
+            originalColor = buttonImage.color;
+        }
     }
 
     void Update() {
-        if (GameManager.I == null) return;
-        if (GameManager.I.IsInputBlocked) {
-            if (highlightObject != null && highlightObject.activeSelf) highlightObject.SetActive(false);
-            return;
+        // Handle input blocking state changes
+        if (GameManager.I != null && GameManager.I.IsInputBlocked) {
+            if (button != null) button.interactable = false;
+        } else {
+            if (button != null) button.interactable = true;
         }
+    }
 
-        if (InputManager.Instance == null) return;
-        Vector2 pointer = InputManager.Instance.PointerScreenPosition;
+    public void OnPointerEnter(PointerEventData eventData) {
+        if (GameManager.I != null && GameManager.I.IsInputBlocked) return;
+        if (buttonImage != null) buttonImage.color = Color.yellow;
+    }
 
-        Rect region = CalculateRegion();
-        bool inside = region.Contains(pointer);
+    public void OnPointerExit(PointerEventData eventData) {
+        if (buttonImage != null) buttonImage.color = originalColor;
+    }
 
-        if (inside && highlightObject != null && !highlightObject.activeSelf) highlightObject.SetActive(true);
-        else if (!inside && highlightObject != null && highlightObject.activeSelf) highlightObject.SetActive(false);
-
-        if (inside && InputManager.Instance.WasClickThisFrame()) {
-            // trigger scene transition
+    private void OnButtonClick() {
+        if (GameManager.I == null || GameManager.I.IsInputBlocked) return;
+        
+        // Check if we're in overlay mode
+        if (cinematicLoader != null && cinematicLoader.IsOverlayActive) {
+            // Close overlay instead of transitioning rooms
+            StartCoroutine(CloseOverlay());
+        } else {
+            // Normal room transition
             GameManager.I.TransitionToNextRoom();
         }
     }
-
-    Rect CalculateRegion() {
-        float w = Screen.width * regionWidthFraction;
-        float h = Screen.height * regionHeightFraction;
-        float x = (Screen.width - w) / 2f;
-        float y = verticalOffset;
-        return new Rect(x, y, w, h);
-    }
-
-    // Debug draw in Scene view
-    void OnDrawGizmosSelected() {
-        var r = CalculateRegion();
-        Gizmos.color = Color.cyan;
-        // draw approximate rect in world-space by mapping corners through Camera.ScreenToWorldPoint
-        var cam = Camera.main;
-        if (cam == null) return;
-        Vector3 a = cam.ScreenToWorldPoint(new Vector3(r.xMin, r.yMin, cam.nearClipPlane));
-        Vector3 b = cam.ScreenToWorldPoint(new Vector3(r.xMax, r.yMin, cam.nearClipPlane));
-        Vector3 c = cam.ScreenToWorldPoint(new Vector3(r.xMax, r.yMax, cam.nearClipPlane));
-        Vector3 d = cam.ScreenToWorldPoint(new Vector3(r.xMin, r.yMax, cam.nearClipPlane));
-        Gizmos.DrawLine(a, b); Gizmos.DrawLine(b, c); Gizmos.DrawLine(c, d); Gizmos.DrawLine(d, a);
+    
+    private IEnumerator CloseOverlay() {
+        if (cinematicLoader != null) {
+            yield return cinematicLoader.HideOverlay();
+        }
     }
 }

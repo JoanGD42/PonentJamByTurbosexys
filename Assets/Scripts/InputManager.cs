@@ -39,12 +39,20 @@ public class InputManager : MonoBehaviour {
     }
 
     void OnDisable() {
-        clickAction.performed -= OnClickPerformed;
-        cancelAction.performed -= OnCancelPerformed;
+        // Add null checks to prevent infinite error loop when singleton destroys duplicate instances
+        if (clickAction != null) {
+            clickAction.performed -= OnClickPerformed;
+            clickAction.Disable();
+        }
+        
+        if (cancelAction != null) {
+            cancelAction.performed -= OnCancelPerformed;
+            cancelAction.Disable();
+        }
 
-        pointAction.Disable();
-        clickAction.Disable();
-        cancelAction.Disable();
+        if (pointAction != null) {
+            pointAction.Disable();
+        }
     }
 
     void CreateActions() {

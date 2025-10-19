@@ -10,12 +10,19 @@
           "position": { "x": 0.0, "y": 0.0 },
           "dialogueId": "dialogue_fridge_first",
           "cinematicId": "cinematic_fridge_first"
+        },
+        {
+          "id": "girl_closet",
+          "displayName": "Closet",
+          "position": { "x": 0.0, "y": 0.0 },
+          "dialogueId": "dialogue_girl_closet_first",
+          "cinematicId": "close_up_closet_girl"
         }
       ]
     },
     {
       "id": "parents_dorm",
-      "sceneName": "Room_ParentsDorm",
+      "sceneName": "Room_Dorm",
       "items": [
         {
           "id": "parents_jacket",
@@ -23,6 +30,13 @@
           "position": { "x": 0.0, "y": 0.0 },
           "dialogueId": "dialogue_jacket_first",
           "cinematicId": "cinematic_jacket_first"
+        },
+        {
+          "id": "parents_closet",
+          "displayName": "Closet",
+          "position": { "x": 0.0, "y": 0.0 },
+          "dialogueId": "dialogue_closet_first",
+          "cinematicId": "close_up_closet"
         }
       ]
     }
@@ -39,6 +53,13 @@
       "lines": [
         { "text": "Sempre em venia a buscar amb la moto després de classe.", "audioClip": "audio/jacket_line1" },
         { "text": "Recordo que m'agafava ben fort perquè tenia por. La seva olor em calmava. Si tanco els ulls encara la sento...", "audioClip": "audio/jacket_line2" }
+      ]
+    },
+    {
+      "id": "dialogue_armari_first",
+      "lines": [
+        { "text": "Eh, la jaqueta del pare.", "audioClip": "audio/jacket_line1" },
+        { "text": "Potser hi ha diners a la butxaca...", "audioClip": "audio/jacket_line1" }
       ]
     }
   ],
