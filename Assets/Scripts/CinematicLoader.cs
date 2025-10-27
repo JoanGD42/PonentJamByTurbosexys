@@ -88,6 +88,14 @@ public class CinematicLoader : MonoBehaviour {
         
         Debug.Log("Jacket cinematic: Touching father's jacket...");
         
+        // Disable canvas 2 raycaster since we're showing overlays
+        if (overlayCanvases[2] != null) {
+            var raycaster2 = overlayCanvases[2].GetComponent<GraphicRaycaster>();
+            if (raycaster2 != null) {
+                raycaster2.enabled = false;
+            }
+        }
+        
         // Show detailed jacket view (canvas 3 for sniff jaqueta)
         yield return ShowOverlay("sniff jaqueta", 3);
         currentOverlayContext = "jacket_detail";
@@ -122,47 +130,37 @@ public class CinematicLoader : MonoBehaviour {
     }
     
     private IEnumerator HideJacketCinematicOverlays() {
-        // Hardcoded cleanup for jacket cinematic: fade out canvas 3 (sniff jaqueta) and canvas 4 (armari pares 2)
-        Debug.Log("HideJacketCinematicOverlays: Starting fade out on canvases 3 and 4");
+        // Hardcoded cleanup for jacket cinematic: fade out canvas 3 (sniff jaqueta) ONLY
+        Debug.Log("HideJacketCinematicOverlays: Starting fade out on canvas 3");
         
-        List<Canvas> canvasesToHide = new List<Canvas> { overlayCanvases[3], overlayCanvases[4] };
+        Canvas canvasToHide = overlayCanvases[3];
         
-        // Fade out both canvases simultaneously
+        // Fade out canvas 3 (sniff overlay)
         float alpha = 1f;
         while (alpha > 0f) {
             alpha -= Time.deltaTime * fadeSpeed;
             
-            foreach (var canvas in canvasesToHide) {
-                if (canvas == null) continue;
-                
-                Image[] images = canvas.GetComponentsInChildren<Image>(true);
-                foreach (var img in images) {
-                    if (img != null) {
-                        Color color = img.color;
-                        color.a = alpha;
-                        img.color = color;
-                    }
+            Image[] images = canvasToHide.GetComponentsInChildren<Image>(true);
+            foreach (var img in images) {
+                if (img != null) {
+                    Color color = img.color;
+                    color.a = alpha;
+                    img.color = color;
                 }
             }
             yield return null;
         }
         
-        // Disable raycasters on cinematic canvases (3 and 4 only)
-        foreach (var canvas in canvasesToHide) {
-            if (canvas == null) continue;
-            
-            var raycaster = canvas.GetComponent<GraphicRaycaster>();
-            if (raycaster != null) {
-                raycaster.enabled = false;
-            }
+        // Disable raycaster on canvas 3 ONLY (the sniff overlay)
+        var raycaster3 = canvasToHide.GetComponent<GraphicRaycaster>();
+        if (raycaster3 != null) {
+            raycaster3.enabled = false;
         }
         
-        // NOTE: Canvas 2 (armari pares 1) stays enabled - it's the base room overlay
-        // The exit button is on this canvas, so we need it to remain clickable!
-        
-        currentActiveCanvas = null;
-        currentOverlayContext = "";
-        Debug.Log("HideJacketCinematicOverlays: Completed");
+        // Canvas 4 (armari pares 2 - empty closet) stays enabled and visible
+        currentActiveCanvas = overlayCanvases[4];
+        currentOverlayContext = "closet_empty";
+        Debug.Log("HideJacketCinematicOverlays: Completed - showing armari pares 2");
     }
     
     private IEnumerator PlayParentsClosetCinematic() {
@@ -263,13 +261,24 @@ public class CinematicLoader : MonoBehaviour {
         
         Debug.Log($"CinematicLoader.HideOverlay: Starting fade out on canvas {currentActiveCanvas.name}");
         
-        // Fade out the current active canvas
-        Image[] overlayImages = currentActiveCanvas.GetComponentsInChildren<Image>(true);
+        // Check if we need to fade out both canvas 4 AND canvas 2 simultaneously
+        bool fadeCanvas2Also = (currentActiveCanvas == overlayCanvases[4] && 
+                                GameManager.I.HasItemBeenCollected("parents_jacket"));
         
-        // Fade out
+        Image[] overlayImages = currentActiveCanvas.GetComponentsInChildren<Image>(true);
+        Image[] canvas2Images = null;
+        
+        if (fadeCanvas2Also && overlayCanvases[2] != null) {
+            Debug.Log("HideOverlay: Also fading out canvas 2 (armari pares 1) simultaneously");
+            canvas2Images = overlayCanvases[2].GetComponentsInChildren<Image>(true);
+        }
+        
+        // Fade out BOTH canvases simultaneously
         float alpha = 1f;
         while (alpha > 0f) {
             alpha -= Time.deltaTime * fadeSpeed;
+            
+            // Fade canvas 4
             foreach (var img in overlayImages) {
                 if (img != null) {
                     Color color = img.color;
@@ -277,10 +286,22 @@ public class CinematicLoader : MonoBehaviour {
                     img.color = color;
                 }
             }
+            
+            // Fade canvas 2 at the same time
+            if (canvas2Images != null) {
+                foreach (var img in canvas2Images) {
+                    if (img != null) {
+                        Color color = img.color;
+                        color.a = alpha;
+                        img.color = color;
+                    }
+                }
+            }
+            
             yield return null;
         }
         
-        // Ensure zero alpha
+        // Ensure zero alpha on both
         foreach (var img in overlayImages) {
             if (img != null) {
                 Color color = img.color;
@@ -289,10 +310,28 @@ public class CinematicLoader : MonoBehaviour {
             }
         }
         
-        // Disable raycaster
+        if (canvas2Images != null) {
+            foreach (var img in canvas2Images) {
+                if (img != null) {
+                    Color color = img.color;
+                    color.a = 0f;
+                    img.color = color;
+                }
+            }
+        }
+        
+        // Disable raycaster on current canvas
         var raycaster = currentActiveCanvas.GetComponent<GraphicRaycaster>();
         if (raycaster != null) {
             raycaster.enabled = false;
+        }
+        
+        // Disable raycaster on canvas 2 if we faded it
+        if (fadeCanvas2Also && overlayCanvases[2] != null) {
+            var raycaster2 = overlayCanvases[2].GetComponent<GraphicRaycaster>();
+            if (raycaster2 != null) {
+                raycaster2.enabled = false;
+            }
         }
         
         currentActiveCanvas = null;
